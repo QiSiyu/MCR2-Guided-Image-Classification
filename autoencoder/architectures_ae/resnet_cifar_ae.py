@@ -11,7 +11,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 ################ Functions for DWT #################
 
 def rgb2ycbcr(im):
-    transform_kernel = torch.from_numpy(np.array([[.299, .587, .114], 
+    transform_kernel = torch.from_numpy(np.array([[.299, .587, .114],
                                                   [-.1687, -.3313, .5],
                                                   [.5, -.4187, -.0813]],
                                                  dtype=np.float32)).float().to(device)
@@ -31,7 +31,7 @@ def getTcdf53(height):
     for col in range(1,height-2,2):
         X1[col-1,col]=X1[col+1,col]=a1
     X1[height-2,height-1] = 2*a1
-    
+
     #print(X1)
     for col in range(2,height-1,2):
         X2[col-1,col]=X2[col+1,col]=a2
@@ -86,7 +86,7 @@ class BasicBlock(nn.Module):
             self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
                                    stride=1, padding=1, bias=False)
             self.bn2 = nn.BatchNorm2d(planes)
-    
+
             self.shortcut = nn.Sequential()
             if stride != 1 or in_planes != self.expansion * planes:
                 self.shortcut = nn.Sequential(
@@ -101,7 +101,7 @@ class BasicBlock(nn.Module):
             self.conv2 = nn.Conv2d(planes[0], planes[1], kernel_size=3,
                                    stride=1, padding=1, bias=False)
             self.bn2 = nn.BatchNorm2d(planes[1])
-    
+
             self.shortcut = nn.Sequential()
             if stride != 1 or in_planes != self.expansion * planes:
                 self.shortcut = nn.Sequential(
@@ -171,7 +171,7 @@ class ResNetDWT(nn.Module):
         self.im_shape = im_shape
         input_dim = 12
         block_expansion = 2
-           
+
         self.bn0 = nn.BatchNorm2d(input_dim)
         self.eps=1e-7
 
@@ -179,14 +179,14 @@ class ResNetDWT(nn.Module):
         self.conv1 = nn.Conv2d(input_dim, self.in_planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(self.in_planes)
-        
+
         # M1
         self.layer1 = self._make_layer(block, self.layer_width, num_blocks[0], stride=1)
-        
+
         # M2
         m2_width = int(self.layer_width*block_expansion)
         self.layer2 = self._make_layer(block, m2_width, num_blocks[1], stride=2)
-        
+
         # M3
         self.layer3 = self._make_layer(block, int(self.layer_width*block_expansion**2), num_blocks[2], stride=2)
 
@@ -215,15 +215,15 @@ class ResNetDWT(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(feature_dim, feature_dim, bias=True)
         )
-        
+
 
         # DWT functions
         M,_ = getTcdf53(im_shape)
         self.dwt = batch_dwt_cdf(nn.Parameter(torch.from_numpy(M.astype(np.float32)).to(device)))
-        
+
         # final dense layer
         self.final_lin = nn.Linear(int(self.layer_width*block_expansion**2 * block.expansion), 10, bias=True)
-        
+
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -240,19 +240,19 @@ class ResNetDWT(nn.Module):
             Output of feature map decoder
             Predicted logits
             '''
-        x = self.dwt(rgb2ycbcr(x*255.-128))/255
-
+        # x = self.dwt(rgb2ycbcr(x*255.-128))/255
+        x = self.dwt(x) # in the uploaded model I've skipped color space conversion. It doesn't change the overall performance.
         x = self.bn1(self.conv1(x))
         x = self.layer1(F.relu(x))
         feature_map = self.layer2(x)
 
         mcr2_out = F.avg_pool2d(feature_map, feature_map.size(2))
-        encoded = self.encoder(mcr2_out.view(mcr2_out.size(0), -1))
+        encoded = self.encoder(mcr2_out.view(mcr2_out.size(0), -1)) # "encoded" is the y vector, before quantization
         mcr2_out = self.quantize(encoded)
-        
+
         recon = self.decoder(mcr2_out.unsqueeze(-1).unsqueeze(-1))
 
-        
+
         out = self.layer3(recon)
         out = F.avg_pool2d(out, out.size(2))
         out = out.view(out.size(0), -1)
@@ -267,7 +267,3 @@ class ResNetDWT(nn.Module):
 
 def ResNet18DWT(feature_dim=10, im_shape=32):
     return ResNetDWT(BasicBlock, [2, 2, 2, 2], feature_dim,im_shape)
-
-
-
-
