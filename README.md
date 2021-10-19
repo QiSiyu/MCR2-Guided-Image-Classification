@@ -10,6 +10,7 @@ $ python train_ae.py --arch=resnet18 \ # architecture
                      --epo=0 \ # number of epochs to train Encoder & Decoder, I used 100
                      --DWT \ # apply DWT to input images
                      --pretrain_dir=saved_models/trained_model \ # pretrained model path
+                     --model_dir=trained_model \ # directory to save current model
                      --ce_lam=9 # lambda value of CE loss
 
 ```

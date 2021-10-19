@@ -3,7 +3,7 @@ import os
 import sys
 if not os.path.abspath('..') in sys.path:
     sys.path.append(os.path.abspath('..'))
-    
+
 import numpy as np
 from torch.utils.data import DataLoader
 from augmentloader import AugmentLoader
@@ -75,7 +75,7 @@ print('Weight of cross entropy loss: ', args.ce_lam)
 if args.model_dir is None:
     model_dir = os.path.join(args.save_dir,
                'sup_{}+{}_{}_epo{}_bs{}_lr{}_mom{}_wd{}_gam1{}_gam2{}_eps{}_lcr{}{}'.format(
-                    args.arch, args.fd, args.data, args.epo, args.bs, args.lr, args.mom, 
+                    args.arch, args.fd, args.data, args.epo, args.bs, args.lr, args.mom,
                     args.wd, args.gam1, args.gam2, args.eps, args.lcr, args.tail))
 else:
     model_dir = os.path.join(args.save_dir,args.model_dir)
@@ -91,7 +91,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 if args.DWT:
     args.arch+='DWT'
     print('Apply DWT to inputs')
-    
+
 print('Using separate optimizers for MCR2 and CE loss, both updating part of model')
 ce_param_list = ['decoder', 'layer3', 'final_lin']
 
@@ -105,18 +105,18 @@ if args.pretrain_dir is not None:
         utils.update_params(model_dir, args.pretrain_dir)
     else:
         net, _, loaded_scheduler, pretrained_epoch = tf.load_part_of_model(args.pretrain_dir, args.pretrain_epo, im_shape=im_shape,arc=args.arch)
-    
+
     mcr2_params = [p for n, p in net.named_parameters() if (not any(ce_param in n for ce_param in ce_param_list))]
     ce_params = [p for n, p in net.named_parameters() if any(ce_param in n for ce_param in ce_param_list)]
     mcr2_optimizer = optim.SGD(mcr2_params, lr=args.lr, momentum=args.mom, weight_decay=args.wd)
     ce_optimizer = optim.SGD(ce_params, lr=args.lr, momentum=args.mom, weight_decay=args.wd)
-    
-    if not (args.pretrain_dir).endswith('pt'):
-        mcr2_optimizer.load_state_dict(mcr2_optimizer_state)
-        ce_optimizer.load_state_dict(ce_optimizer_state)
-    else:
-        mcr2_scheduler = lr_scheduler.MultiStepLR(mcr2_optimizer, [args.epo//4, args.epo//2, (3*args.epo)//4], gamma=0.1)
-        ce_scheduler = lr_scheduler.MultiStepLR(ce_optimizer, [args.epo//4, args.epo//2, (3*args.epo)//4], gamma=0.1)
+
+    # if not (args.pretrain_dir).endswith('pt'):
+    #      mcr2_optimizer.load_state_dict(mcr2_optimizer_state)
+    #      ce_optimizer.load_state_dict(ce_optimizer_state)
+    # else:
+    mcr2_scheduler = lr_scheduler.MultiStepLR(mcr2_optimizer, [args.epo//4, args.epo//2, (3*args.epo)//4], gamma=0.1)
+    ce_scheduler = lr_scheduler.MultiStepLR(ce_optimizer, [args.epo//4, args.epo//2, (3*args.epo)//4], gamma=0.1)
 
 else:
     # initialize new model
@@ -130,7 +130,7 @@ else:
     mcr2_scheduler = lr_scheduler.MultiStepLR(mcr2_optimizer, [args.epo//4, args.epo//2, (3*args.epo)//4], gamma=0.1)
     ce_scheduler = lr_scheduler.MultiStepLR(ce_optimizer, [args.epo//4, args.epo//2, (3*args.epo)//4], gamma=0.1)
 
-   
+
 
 transforms = tf.load_transforms(args.transform)
 trainset,sampler = tf.load_trainset(args.data, transforms, path=args.data_dir)
@@ -189,7 +189,7 @@ for epoch in range(pure_ce_epoch):
                     _, predicted = torch.max(outputs[-1].data, 1)
                     total_train += labels.size(0)
                     correct_train += (predicted == labels.to(device)).sum().item()
-            
+
             correct_test = 0
             total_test = 0
             with torch.no_grad():
@@ -199,7 +199,7 @@ for epoch in range(pure_ce_epoch):
                     _, predicted = torch.max(outputs[-1].data, 1)
                     total_test += labels.size(0)
                     correct_test += (predicted == labels.to(device)).sum().item()
-            
+
             print('[Epoch %d] time elapsed: %.1f seconds, ce loss: %.3f, mse loss: %.3f, train_acc: %.2f%%, val acc: %.2f%%' % \
                   (epoch + 1,time.time()-start,
                    running_ce_loss / len(ce_trainloader),
@@ -232,7 +232,7 @@ for epoch in range(pretrained_epoch, args.epo):
         _, latent_bits, features, _, _ = net(batch_imgs.to(device))
         # phase 1: mcr2 backprop
         mcr2_loss, loss_empi, loss_theo = mcr2_criterion(features, batch_lbls, num_classes=num_classes)
-        
+
         utils.save_state(model_dir, epoch, step, mcr2_loss.item(), *loss_empi, *loss_theo)
         running_mcr2_loss += mcr2_loss.item()
 
@@ -246,14 +246,14 @@ for epoch in range(pretrained_epoch, args.epo):
         mcr2_loss, loss_empi, loss_theo = mcr2_criterion(features, batch_lbls, num_classes=num_classes)
         ce_loss = args.ce_lam * ce_criterion(logits, batch_lbls.long().to(device))
         running_loss += ce_loss.item()
-        
+
         ce_optimizer.zero_grad()
         ce_loss.backward()
         ce_optimizer.step()
-        
+
     mcr2_scheduler.step()
     ce_scheduler.step()
-    
+
     net.eval()
     # print accuracy
     total_train = 0
@@ -265,7 +265,7 @@ for epoch in range(pretrained_epoch, args.epo):
             _, predicted = torch.max(outputs[-1].data, 1)
             total_train += labels.size(0)
             correct_train += (predicted == labels.to(device)).sum().item()
-    
+
     correct_test = 0
     total_test = 0
     with torch.no_grad():
@@ -275,12 +275,12 @@ for epoch in range(pretrained_epoch, args.epo):
             _, predicted = torch.max(outputs[-1].data, 1)
             total_test += labels.size(0)
             correct_test += (predicted == labels.to(device)).sum().item()
-    
+
     print('[Epoch %d] time elapsed: %.1f seconds, latent bits: %.3f, mcr2 loss: %.3f, avg ce loss: %.3f, avg mse loss: %.3f, train acc: %.2f%%, val acc: %.2f%%' % \
           (epoch + 1,
            time.time()-start,
-           running_latent_bits/len(trainloader), 
-           running_mcr2_loss/len(trainloader), 
+           running_latent_bits/len(trainloader),
+           running_mcr2_loss/len(trainloader),
            running_loss / len(trainloader),
            running_mse_loss / len(trainloader),
            100 * correct_train / total_train, 100 * correct_test / total_test))
