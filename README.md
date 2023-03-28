@@ -1,5 +1,20 @@
 # MCR2-Guided-Image-Classification
-Usage:
+## Introduction
+This repository contains the scripts to train and test the models described in the paper "[Hierarchical Training for Distributed Deep Learning Based on Multimedia Data over Band-Limited Networks](https://ieeexplore.ieee.org/document/9897383/)".
+
+### Citation
+If you use these scripts in your research, please cite:
+
+    @inproceedings{qi2022hierarchical,
+    title={Hierarchical Training for Distributed Deep Learning Based on Multimedia Data over Band-Limited Networks},
+    author={Qi, Siyu and Chamain, Lahiru D and Ding, Zhi},
+    booktitle={2022 IEEE International Conference on Image Processing (ICIP)},
+    pages={2871--2875},
+    year={2022},
+    organization={IEEE}
+    }
+
+## Usage:
 ```bash
 $ cd autoencoder
 $ python train_ae.py --arch=resnet18 \ # architecture
